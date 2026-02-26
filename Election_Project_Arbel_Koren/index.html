@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>בחירות 2026 - פרויקט גמר</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.2/web3.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; }
+        .container { background: white; max-width: 800px; margin: 0 auto; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; color: #34495e; }
+        
+        /* עיצוב כפתורים ותיבות */
+        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; margin: 5px; transition: 0.3s; }
+        button:hover { background-color: #2980b9; transform: translateY(-2px); }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 60%; margin: 5px 0; font-size: 16px; }
+        
+        /* עיצוב רשימת המועמדים */
+        .box { background: #ecf0f1; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .candidate-item { display: flex; justify-content: space-between; align-items: center; text-align: right; }
+        
+        #status { font-weight: bold; margin-top: 20px; color: #e74c3c; min-height: 20px; }
+        .data-display { font-size: 18px; color: #27ae60; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🗳️ מערכת בחירות מבוזרת 2026</h1>
+        
+        <div class="box">
+            <div>כתובת ארנק: <span id="userAddress">לא מחובר</span></div>
+            <div>יתרת מטבעות (BAL): <span id="balanceDisplay" class="data-display">0</span></div>
+        </div>
+
+        <div id="adminSection">
+            <h2>👮 אזור ניהול</h2>
+            <input type="text" id="candName" placeholder="שם המועמד (למשל: דני)">
+            <input type="text" id="candOpinions" placeholder="דעות (למשל: 1,9,5)">
+            <br>
+            <button onclick="addCandidate()">➕ הוסף מועמד</button>
+            <hr>
+            <input type="number" id="duration" placeholder="דקות לבחירות" value="10" style="width: 100px;">
+            <button onclick="startElection()" style="background-color: #e67e22;">🚀 התחל בחירות</button>
+        </div>
+
+        <div id="voteSection">
+            <h2>👇 אזור הצבעה</h2>
+            <div id="candidatesList" class="box">
+                <em>טוען מועמדים...</em>
+            </div>
+
+            <h3>🤖 הבוט החכם</h3>
+            <p>הכנס את העדפותיך (1-10) והמערכת תבחר בשבילך את המועמד המתאים:</p>
+            <input type="text" id="myOpinions" placeholder="העדפות שלי (למשל: 10,2,8)">
+            <br>
+            <button onclick="voteSmart()" style="background-color: #9b59b6;">✨ הצבעה חכמה</button>
+        </div>
+
+        <p id="status"></p>
+    </div>
+
+    <script>
+        let account;
+        let web3;
+        let electionContract;
+        let tokenContract;
+
+        // --- 1. אזור ההגדרות (אם עשית DEPLOY מחדש - עדכן כאן!) ---
+        
+        // הדבק כאן את כתובת הבחירות החדשה
+        const ELECTION_ADDRESS = "0xB1d42cbC5033d14847535d82c475ea0D1BcCce7E";
+
+        // הדבק כאן את כתובת המטבע החדשה
+        const TOKEN_ADDRESS = "0x154bbb1dA34a55AF27f1f40a55489340ef21Ce97";
+
+        // ה-ABI (לא צריך לשנות)
+        const ELECTION_ABI = [
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256[3]",
+                "name": "_opinions",
+                "type": "uint256[3]"
+            }
+        ],
+        "name": "addCandidate",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "_root",
+                "type": "bytes32"
+            }
+        ],
+        "name": "setMerkleRoot",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_durationInMinutes",
+                "type": "uint256"
+            }
+        ],
+        "name": "startElection",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_tokenAddress",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_candidateId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bytes32[]",
+                "name": "_proof",
+                "type": "bytes32[]"
+            }
+        ],
+        "name": "vote",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "admin",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "candidates",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "voteCount",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "electionEndTime",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "electionStarted",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_index",
+                "type": "uint256"
+            }
+        ],
+        "name": "getCandidate",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256[3]",
+                "name": "",
+                "type": "uint256[3]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getCandidatesCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getTestRootAndProof",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "root",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "bytes32[]",
+                "name": "proof",
+                "type": "bytes32[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "hasVoted",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "merkleRoot",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "rewardAmount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "token",
+        "outputs": [
+            {
+                "internalType": "contract IBalToken",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]; 
+        
+        const TOKEN_ABI = [
+            { "constant": true, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function" }
+        ];
+
+        // --- 2. התחברות ל-MetaMask ---
+        window.onload = async function() {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    account = accounts[0];
+                    document.getElementById("userAddress").innerText = account;
+                    
+                    electionContract = new web3.eth.Contract(ELECTION_ABI, ELECTION_ADDRESS);
+                    tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS);
+
+                    console.log("מחובר בהצלחה!");
+                    updateData();
+
+                } catch (error) {
+                    console.error("User denied account access");
+                }
+            } else {
+                alert("אנא התקן MetaMask!");
+            }
+        };
+
+        // --- 3. עדכון נתונים (כולל הצגה של כפתור הצבעה ישירה) ---
+        async function updateData() {
+            // יתרה
+            const balance = await tokenContract.methods.balanceOf(account).call();
+            const formatBalance = web3.utils.fromWei(balance, 'ether'); 
+            document.getElementById("balanceDisplay").innerText = formatBalance;
+
+            // רשימת מועמדים
+            const count = await electionContract.methods.getCandidatesCount().call();
+            let html = "";
+            for (let i = 0; i < count; i++) {
+                const c = await electionContract.methods.getCandidate(i).call();
+                // התיקון כאן: הוספנו כפתור ירוק להצבעה ישירה
+                html += `<div class='box candidate-item'>
+                            <div>
+                                <strong>${c[1]}</strong> (קולות: ${c[2]})<br>
+                                <small>דעות: ${c[3]}</small>
+                            </div>
+                            <button onclick="voteDirect(${i})" style="background-color: #27ae60;">✋ הצבע ל${c[1]}</button>
+                         </div>`;
+            }
+            document.getElementById("candidatesList").innerHTML = html;
+        }
+
+        // --- 4. פונקציות לאדמין ---
+        async function addCandidate() {
+            const name = document.getElementById("candName").value;
+            const opinionsStr = document.getElementById("candOpinions").value;
+            const opinions = opinionsStr.split(",").map(Number);
+
+            document.getElementById("status").innerText = "שולח בקשה להוספת מועמד...";
+            try {
+                await electionContract.methods.addCandidate(name, opinions).send({ from: account });
+                document.getElementById("status").innerText = "✅ מועמד נוסף בהצלחה!";
+                updateData();
+            } catch (err) {
+                document.getElementById("status").innerText = "❌ שגיאה: " + err.message;
+            }
+        }
+
+        async function startElection() {
+            const minutes = document.getElementById("duration").value;
+            document.getElementById("status").innerText = "מתחיל בחירות...";
+            try {
+                const data = await electionContract.methods.getTestRootAndProof().call({from: account});
+                const root = data[0];
+                
+                await electionContract.methods.setMerkleRoot(root).send({ from: account });
+                await electionContract.methods.startElection(minutes).send({ from: account });
+                
+                document.getElementById("status").innerText = "✅ הבחירות התחילו!";
+            } catch (err) {
+                document.getElementById("status").innerText = "❌ שגיאה: " + err.message;
+            }
+        }
+
+        // --- 5. הצבעה ישירה (חדש!) ---
+        async function voteDirect(candidateId) {
+            document.getElementById("status").innerText = "מבצע הצבעה ישירה...";
+            try {
+                // משיג את ההוכחה
+                const data = await electionContract.methods.getTestRootAndProof().call({from: account});
+                const proof = data[1];
+
+                // שולח הצבעה
+                await electionContract.methods.vote(candidateId, proof).send({ from: account });
+                document.getElementById("status").innerText = "🎉 הצבעה ישירה נקלטה!";
+                updateData();
+            } catch (err) {
+                document.getElementById("status").innerText = "❌ שגיאה: " + err.message;
+            }
+        }
+
+        // --- 6. הצבעה חכמה (הבונוס) ---
+        async function voteSmart() {
+            const myOpsStr = document.getElementById("myOpinions").value;
+            const myOps = myOpsStr.split(",").map(Number);
+
+            document.getElementById("status").innerText = "מחשב התאמה...";
+            
+            const count = await electionContract.methods.getCandidatesCount().call();
+            let bestCandidateId = -1;
+            let bestScore = 1000;
+
+            for (let i = 0; i < count; i++) {
+                const c = await electionContract.methods.getCandidate(i).call();
+                const candOps = c[3];
+                let currentScore = 0;
+                for(let j=0; j<3; j++) {
+                    currentScore += Math.abs(myOps[j] - Number(candOps[j]));
+                }
+                if (currentScore < bestScore) {
+                    bestScore = currentScore;
+                    bestCandidateId = i;
+                }
+            }
+
+            if (bestCandidateId !== -1) {
+                document.getElementById("status").innerText = `נמצאה התאמה! מצביע למועמד מס' ${bestCandidateId}...`;
+                const data = await electionContract.methods.getTestRootAndProof().call({from: account});
+                const proof = data[1];
+
+                try {
+                    await electionContract.methods.vote(bestCandidateId, proof).send({ from: account });
+                    document.getElementById("status").innerText = "🎉 הצבעה חכמה בוצעה!";
+                    updateData();
+                } catch (err) {
+                    document.getElementById("status").innerText = "❌ שגיאה בהצבעה: " + err.message;
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
