@@ -1,122 +1,129 @@
 
 ---
 
-Decentralized Election System 2026 
+# מערכת בחירות מבוזרת 2026 (Decentralized Election System)
 
-**Author:** Arbel Koren 
+**מגיש:** ארבל קורן 
 
-**Project Type:** Final project for Blockchain Course 
+**מהות הפרויקט:** פרויקט גמר בקורס בלוקצ'יין 
 
-## Overview
+## סקירה כללית
 
-A transparent, reliable, and immutable election system built on the **Ethereum Blockchain**. The system ensures security through cryptographic verification and incentivizes participation using a custom digital token.
+מערכת זו היא פתרון לבחירות דיגיטליות שקופות, אמינות ובלתי ניתנות לשינוי, המבוססת על רשת ה-Ethereum. המערכת משלבת חוזים חכמים לניהול תהליך ההצבעה ויצירת תמריצים כלכליים למצביעים. 
 
-## 🚀 Key Features
-
-* 
-**Decentralized Voting:** Secure and transparent voting process powered by Solidity smart contracts.
-
+## 🚀 תכונות עיקריות
 
 * 
-**Voter Eligibility (Merkle Tree):** Uses Merkle Proofs to verify voter eligibility without exposing the entire voter list on-chain.
+**הצבעה מבוזרת:** ניהול בחירות מאובטח ללא גורם מרכזי באמצעות Solidity. 
 
 
 * 
-**Incentive Mechanism:** Voters automatically receive **10 BAL Tokens** as a reward after successfully casting a vote.
+**אימות זכאות (Merkle Tree):** שימוש בהוכחות Merkle כדי לוודא שרק כתובות מאושרות יכולות להצביע מבלי לחשוף את כל רשימת הבוחרים ב-Chain. 
 
 
 * 
-**Smart Bot Algorithm:** A "Smart Choice" feature that matches undecided voters with the best-fitting candidate based on a preference algorithm.
+**מערכת תמריצים (Incentive):** כל מצביע מקבל אוטומטית 10 מטבעות BAL לאחר ביצוע ההצבעה. 
 
 
 * 
-**Real-time Integration:** Frontend tracks MetaMask accounts, BAL balances, and election timers in real-time.
-
-
-
-## 🛠 Tech Stack
-
-* 
-**Smart Contracts:** Solidity (^0.8.19).
+**אלגוריתם "הבחירה החכמה":** מנגנון המסייע למצביעים מתלבטים למצוא את המועמד המתאים להם ביותר על סמך העדפות אישיות. 
 
 
 * 
-**Frontend:** HTML5, CSS3, and Web3.js.
+**ממשק משתמש (Frontend):** חיבור מלא ל-MetaMask, הצגת יתרת מטבעות בזמן אמת וטיימר לסיום הבחירות. 
+
+
+
+## 🛠 טכנולוגיות
+
+* 
+**Smart Contracts:** Solidity (^0.8.19). 
 
 
 * 
-**Wallet:** MetaMask integration.
+**Frontend:** HTML5 ו-Web3.js. 
 
 
 * 
-**Network:** Designed for the **Sepolia Testnet**.
-
-
-
-## 📜 Smart Contracts
-
-1. BalToken.sol (ERC20) 
-
-A standard digital token used for rewarding participants.
-
-* 
-**Name:** BalToken.
+**Network:** מותאם לרשת הבדיקה Sepolia. 
 
 
 * 
-**Symbol:** BAL.
+**Wallet:** אינטגרציה עם MetaMask. 
+
+
+
+## 📜 פירוט החוזים החכמים
+
+### 1. BalToken.sol (ERC20)
+
+מטבע דיגיטלי בתקן סטנדרטי המשמש כתגמול למצביעים. 
+
+* 
+**שם המטבע:** BalToken 
 
 
 * 
-**Decimals:** 18.
+**סימול:** BAL 
 
 
 * 
-**Initial Supply:** 1,000,000 BAL.
+**אספקה כוללת:** 1,000,000 מטבעות (עם 18 ספרות אחרי הנקודה). 
 
 
 
-2. Election.sol (Core Logic) 
+### 2. Election.sol (Core Logic)
 
-Manages the election lifecycle and candidate data.
-
-* 
-**Candidate Management:** Admins can add candidates with specific "opinion rankings" (1-10).
-
+החוזה המרכזי המנהל את הלוגיקה של הבחירות. 
 
 * 
-**Merkle Verification:** Validates that only authorized addresses can vote.
+**ניהול מועמדים:** האדמין יכול להוסיף מועמדים עם דירוג דעות בנושאים שונים (1-10). 
 
 
 * 
-**Election Timer:** Enforces a strict voting window.
+**תהליך ההצבעה:** בדיקת זכאות באמצעות Merkle Root, אימות חלון זמן הצבעה ורישום הקול. 
 
 
 
-## 🤖 The "Smart Choice" Algorithm
+## 🤖 אלגוריתם הבוט החכם
 
-The system includes an algorithm to calculate the mathematical "distance" between a voter's preferences and a candidate's opinions across three different topics.
-
-The score is calculated as:
-
-
-$$score = \sum_{i=1}^{3} |UserOp_{i} - CandOp_{i}|$$
+המערכת מחשבת "מרחק" מתמטי בין דעות הבוחר לדעות המועמד ב-3 נושאים שונים. 
+הנוסחה לחישוב הציון:
 
 
+$$score=\sum_{i=1}^{3}|UserOp_{i}-candOp_{i}|$$
 
-The system automatically suggests the candidate with the **lowest score** (the shortest distance).
+המערכת תמליץ על המועמד עם הציון הנמוך ביותר (התאמה מקסימלית). 
 
-⚠️ Known Limitations & Bugs 
+## ⚠️ מגבלות ובאגים ידועים
 
 * 
-**Gas Efficiency:** Merkle Root/Proof calculations are currently performed on-chain for demonstration purposes; in production, these should be handled off-chain to save gas.
+**חיסכון ב-Gas:** כרגע חישוב ה-Root וה-Proof מתבצע בתוך החוזה (On-chain) לצורך הדגמה, אך בפרודקשן מומלץ לבצע זאת Off-chain. 
 
 
-* **Sorting:** Candidates are displayed by their ID (order of addition). Sorting by vote count is handled on the client side.
+* **מיון תוצאות:** המועמדים מוצגים לפי סדר הוספתם; מיון לפי פופולריות דורש טיפול בצד הלקוח. 
 
 
 * 
-**Security:** For a live production environment, an admin MultiSig wallet is recommended over a single MetaMask account.
+**אבטחה:** לשימוש מבצעי חובה להשתמש בארנק MultiSig לניהול המערכת. 
+
+
+
+## 💻 הוראות הרצה מהירות
+
+1. בצעו Deploy לחוזה `BalToken`. 
+
+
+2. בצעו Deploy לחוזה `Election` עם כתובת הטוקן שנוצרה. 
+
+
+3. העבירו תקציב של מטבעות BAL לחוזה הבחירות. 
+
+
+4. עדכנו את כתובות החוזים בקובץ `index.html`. 
+
+
+5. הריצו את ה-Frontend באמצעות Live Server. 
 
 
 
